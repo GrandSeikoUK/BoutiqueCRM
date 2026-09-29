@@ -1,13 +1,15 @@
 // Seiko CRM V3.0 - the customer check-in page. One page:
 // your details, personal recommendations, news and events, your privacy, Save. Then a thank-you screen with no way onward.
-// The page cannot read anything from the CRM. What the customer enters is encrypted on this device with a key that
-// travels only in the link fragment, and is handed to the CRM through a relay that sees ciphertext only.
+// The page cannot read anything from the CRM. What the customer enters is encrypted on this device FOR THE CRM that
+// issued the code: the code carries a public key, and only that CRM holds the private key. Whoever holds the code can
+// send details and cannot read them. The relays carry encrypted text only. checkin-rx.js explains the method (version 5).
 (function () {
   'use strict';
   var RELAYS = ['https://ntfy.envs.net', 'https://ntfy.adminforge.de', 'https://ntfy.hostux.net', 'https://ntfy.mzte.de', 'https://ntfy.sh'];
-  var LOCAL_KEY = 'seiko-crm3-checkin', LOCAL_CFG = 'seiko-crm3-checkin-cfg', USED = 'seiko-crm3-used';
+  var LOCAL_KEY = 'seiko-crm3-checkin', LOCAL_CFG = 'seiko-crm3-checkin-cfg', USED = 'seiko-crm3-used', PROTOCOL = 5;
+  var INFO_DETAILS = 'seiko-crm3 check-in details v5', INFO_WORDING = 'seiko-crm3 check-in wording v5', EC = { name: 'ECDH', namedCurve: 'P-256' };
   var qs = new URLSearchParams(location.search), hp = new URLSearchParams(location.hash.replace(/^#/, ''));
-  var topic = qs.get('s') || '', local = qs.get('m') === 'local', kiosk = qs.get('d') === 'ipad', key = hp.get('k') || '', issued = Number(hp.get('t')) || 0;
+  var topic = qs.get('s') || '', local = qs.get('m') === 'local', kiosk = qs.get('d') === 'ipad', pub = hp.get('e') || '', mark = hp.get('h') || '', issued = Number(hp.get('t')) || 0;
   var TTL = kiosk ? 12 * 3600000 : 20 * 60000, IDLE = 120000, RETURN = 12000;
   var page = document.getElementById('page');
   // way of contact: key, label, icon, the detail it needs
@@ -22,7 +24,7 @@
   var ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   function e(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return ESC[c]; }); }
   function ico(n, cls) { return '<span class="ico' + (cls ? ' ' + cls : '') + '" aria-hidden="true">' + n + '</span>'; }
-  function validEmail(x) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(x || '').trim()); }
+  function validEmail(x) { return /^[^\s@<>"()[\]\\,;:]+@[^\s@<>"()[\]\\,;:]+\.[^\s@<>"()[\]\\,;:]{2,}$/.test(String(x || '').trim()); }
   function validPhone(p) { var s = String(p || '').trim(), d = s.replace(/\D/g, ''); return /^[+\d][\d\s().-]*$/.test(s) && d.length >= 7 && d.length <= 15; }
   function has(kind) { return kind === 'email' ? validEmail(st.email) : validPhone(st.mobile); }
   function ways() { return WAYS.filter(function (w) { return has(w[3]); }); }
@@ -30,15 +32,26 @@
   function b64url(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   function bytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
   function withTimeout(url, opts, ms) { var c = new AbortController(), t = setTimeout(function () { c.abort(); }, ms || 8000); opts = opts || {}; opts.signal = c.signal; return fetch(url, opts).then(function (r) { clearTimeout(t); return r; }, function (x) { clearTimeout(t); throw x; }); }
-  function encrypt(text, aad) {
-    var iv = crypto.getRandomValues(new Uint8Array(12));
-    return crypto.subtle.importKey('raw', bytes(key), 'AES-GCM', false, ['encrypt']).then(function (k) { return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: new TextEncoder().encode(aad) }, k, new TextEncoder().encode(text)); })
-      .then(function (ct) { ct = new Uint8Array(ct); var out = new Uint8Array(iv.length + ct.length); out.set(iv); out.set(ct, iv.length); return b64url(out); });
+  function utf8(s) { return new TextEncoder().encode(String(s)); }
+  function aesKey(secret, salt, info, usage) {
+    return crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey']).then(function (k) { return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: utf8(salt), info: utf8(info) }, k, { name: 'AES-GCM', length: 256 }, false, usage); });
   }
-  function decrypt(b64u, aad) {
-    var all = bytes(b64u);
-    return crypto.subtle.importKey('raw', bytes(key), 'AES-GCM', false, ['decrypt']).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: all.slice(0, 12), additionalData: new TextEncoder().encode(aad) }, k, all.slice(12)); })
-      .then(function (p) { return JSON.parse(new TextDecoder().decode(p)); });
+  // The details, encrypted for the CRM. A pair of keys is made for this one message; with the public key of the code it
+  // gives a secret that only this page and the CRM can work out. Nothing that could open the message stays here.
+  function seal(obj) {
+    var mine, epk;
+    return crypto.subtle.generateKey(EC, true, ['deriveBits']).then(function (k) { mine = k; return crypto.subtle.exportKey('raw', k.publicKey); })
+      .then(function (raw) { epk = b64url(raw); return crypto.subtle.importKey('raw', bytes(pub), EC, false, []); })
+      .then(function (theirs) { return crypto.subtle.deriveBits({ name: 'ECDH', public: theirs }, mine.privateKey, 256); })
+      .then(function (secret) { return aesKey(secret, topic, INFO_DETAILS, ['encrypt']); })
+      .then(function (k) { var iv = crypto.getRandomValues(new Uint8Array(12)); return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: utf8(topic + '|' + epk) }, k, utf8(JSON.stringify(obj))).then(function (ct) { ct = new Uint8Array(ct); var out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return { v: PROTOCOL, epk: epk, enc: b64url(out) }; }); });
+  }
+  // The wording, as the CRM published it for this code. It is accepted only when its fingerprint is the one in the code.
+  function openWording(enc) {
+    var hb = bytes(mark), all = bytes(enc), plain;
+    return aesKey(hb, topic, INFO_WORDING, ['decrypt']).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: all.slice(0, 12), additionalData: utf8(topic + '-cfg') }, k, all.slice(12)); })
+      .then(function (p) { plain = new TextDecoder().decode(p); return crypto.subtle.digest('SHA-256', utf8(plain)); })
+      .then(function (d) { if (b64url(new Uint8Array(d).slice(0, 16)) !== b64url(hb)) throw new Error('not the wording of this code'); return JSON.parse(plain); });
   }
   function usedCodes() { try { return JSON.parse(sessionStorage.getItem(USED) || '[]'); } catch (x) { return []; } }
   function safeUrl(u) { return /^https:\/\/[^\s"'<>]+$/i.test(String(u || '')) ? String(u) : ''; }
@@ -47,13 +60,13 @@
   function goodCfg(c) { return !!(c && c.v && c.statement && c.rq && c.nq && Array.isArray(c.brands)); }
   function loadCfg() {
     if (local) { try { var c = JSON.parse(localStorage.getItem(LOCAL_CFG) || 'null'); return Promise.resolve(goodCfg(c) ? c : null); } catch (x) { return Promise.resolve(null); } }
+    // every message a relay holds for this code is tried, the newest first. One that is not the wording of this code is passed over.
     var tries = RELAYS.map(function (h) {
-      return withTimeout(h + '/' + topic + '-cfg/json?poll=1&since=all', { cache: 'no-store' }, 7000).then(function (r) { return r.text(); }).then(function (t) {
-        var last = null;
-        t.split('\n').forEach(function (l) { if (!l.trim()) return; try { var m = JSON.parse(l); if (m.event === 'message') last = m; } catch (x) {} });
-        if (!last) throw new Error('none');
-        return decrypt(JSON.parse(last.message).enc, topic + '-cfg');
-      }).then(function (c) { if (!goodCfg(c)) throw new Error('bad'); return c; });
+      return withTimeout(h + '/' + topic + '-cfg/json?poll=1&since=all', { cache: 'no-store' }, 7000).then(function (r) { if (!r.ok) throw new Error('refused'); return r.text(); }).then(function (t) {
+        var found = [];
+        t.split('\n').forEach(function (l) { if (!l.trim()) return; try { var m = JSON.parse(l); if (m.event === 'message') { var d = JSON.parse(m.message); if (d && d.v === PROTOCOL && typeof d.enc === 'string' && d.enc.length < 20000) found.unshift(d.enc); } } catch (x) {} });
+        return found.slice(0, 5).reduce(function (p, enc) { return p.catch(function () { return openWording(enc).then(function (c) { if (!goodCfg(c)) throw new Error('bad'); return c; }); }); }, Promise.reject(new Error('none')));
+      });
     });
     return new Promise(function (resolve) { var left = tries.length, done = false; tries.forEach(function (p) { p.then(function (c) { if (!done) { done = true; resolve(c); } }, function () { if (--left === 0 && !done) resolve(null); }); }); });
   }
@@ -141,7 +154,7 @@
     if (st.sending) return;
     if (!check()) { draw(true); return; }
     var pick = function (a) { return { answer: a.answer, channels: a.answer === true ? a.channels.slice() : [], brands: a.answer === true ? a.brands.slice() : [] }; };
-    var payload = { v: 4, ts: Date.now(), s: topic, first: st.first, last: st.last, mobile: st.mobile, email: st.email, recommend: pick(st.recommend), news: pick(st.news), noticeVersion: cfg.v, device: kiosk ? 'ipad' : 'phone' };
+    var payload = { v: PROTOCOL, ts: Date.now(), s: topic, first: st.first, last: st.last, mobile: st.mobile, email: st.email, recommend: pick(st.recommend), news: pick(st.news), noticeVersion: cfg.v, device: kiosk ? 'ipad' : 'phone' };
     st.sending = true; st.failed = false; draw();
     var done = function (ok) {
       st.sending = false;
@@ -163,8 +176,8 @@
       } catch (x) { done(false); }
       return;
     }
-    encrypt(JSON.stringify(payload), topic).then(function (enc) {
-      var body = JSON.stringify({ enc: enc }), left = RELAYS.length, ok = false;
+    seal(payload).then(function (sealed) {
+      var body = JSON.stringify(sealed), left = RELAYS.length, ok = false;
       RELAYS.forEach(function (h) { withTimeout(h + '/' + topic, { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain' } }, 9000).then(function (r) { if (r.ok && !ok) { ok = true; done(true); } }, function () {}).then(function () { if (--left === 0 && !ok) done(false); }); });
     }, function () { done(false); });
   }
@@ -199,7 +212,10 @@
 
   // ---- start
   st = fresh();
-  if (!topic || (!local && !key)) { page.innerHTML = Message('This page opens from a code', 'Please ask your consultant to show you the check-in code.'); return; }
+  // shown inside another page, somebody else would decide what the customer sees around it
+  var framed = true; try { framed = window.top !== window.self; } catch (x) {}
+  if (framed) { page.innerHTML = Message('This page cannot open here', 'Please open the check-in code with the camera of your phone.'); return; }
+  if (!topic || !/^[A-Za-z0-9_-]{8,64}$/.test(topic) || (!local && (!/^[A-Za-z0-9_-]{80,100}$/.test(pub) || !/^[A-Za-z0-9_-]{20,24}$/.test(mark)))) { page.innerHTML = Message('This page opens from a code', 'Please ask your consultant to show you the check-in code.'); return; }
   if (issued && Date.now() - issued > TTL) { page.innerHTML = Message('This code has expired', 'Please ask your consultant for a new code.'); return; }
   if (!kiosk && usedCodes().indexOf(topic) > -1) { page.innerHTML = Message('Thank you', 'Your details have been saved. You can now close this page.'); return; }
   if (!window.crypto || !crypto.subtle) { page.innerHTML = Message('This page cannot open here', 'Please ask your consultant for help.'); return; }
