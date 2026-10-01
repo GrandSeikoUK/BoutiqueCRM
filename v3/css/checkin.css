@@ -1,84 +1,90 @@
-/* Seiko CRM V3.0 - the customer check-in page: one page.
-   Two colours carry the meaning: navy = personal recommendations from your consultant; amber = news and events. */
+/* Seiko CRM V3.0 - the customer check-in page: one page, on one card, in the look of the prototype's check-in page
+   (revision 3B of 30 September 2026): capital labels, white fields with a grey edge, pills for the ways and the brands,
+   one colour, navy. Made stronger for a phone than the prototype was: darker greys, 16-pixel fields, 44-pixel pills. */
 @font-face{font-family:'Figtree';font-style:normal;font-weight:300 900;font-display:swap;src:url(../assets/figtree-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 @font-face{font-family:'Figtree';font-style:normal;font-weight:300 900;font-display:swap;src:url(../assets/figtree-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:'Material Symbols Rounded';font-style:normal;font-weight:400;font-display:block;src:url(../assets/material-symbols-rounded.woff2) format('woff2')}
-:root{--navy:#262A5E;--ink:#1C1B33;--mute:#5B5A75;--line:rgba(28,27,51,.16);--amber:#8A5A06;--amber-ink:#6B4504;--amber-bg:#FFF6E3;--amber-in:#FBEBC8;--navy-bg:#ECEEFA;--navy-in:#F2F3FB;--red:#B3253C;--green:#0B8F6C}
+:root{--navy:#262A5E;--navy-dark:#1B1E47;--ink:#1C1B33;--text:#3A3956;--label:#45445E;--mute:#6B6A86;--edge:#9A99B5;--line:rgba(28,27,51,.14);--chosen:#E6E8F6;--inside:#EEF0F9;--inside-edge:#D3D5E8;--red:#B3253C;--green:#0B8F6C}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;min-height:100%}
-/* Type follows the prototype's check-in page: Figtree, title 23/700, labels 10.5 in capitals, fields 15, text 13, notes 11.5 to 12.5.
-   One difference is kept on purpose: small notes use the darker grey (#5B5A75), which is easier to read than the prototype's #8A88A8. */
-body{font-family:Figtree,'Helvetica Neue',Arial,sans-serif;color:var(--ink);font-size:13px;line-height:1.5;background:#EEF0FA;-webkit-font-smoothing:antialiased}
+body{font-family:Figtree,'Helvetica Neue',Arial,sans-serif;color:var(--ink);font-size:13.5px;line-height:1.5;background:#EEF0FA;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
-a{color:var(--navy);font-weight:500}
+a{color:var(--navy);font-weight:600}
+a:hover{color:var(--navy-dark)}
 .ico{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;font-size:18px;line-height:1;display:inline-block;white-space:nowrap;letter-spacing:normal;text-transform:none;vertical-align:middle;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';flex:0 0 auto}
 :focus-visible{outline:3px solid var(--navy);outline-offset:3px;border-radius:8px}
 h1:focus{outline:0}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 [hidden]{display:none!important}
-main{max-width:600px;margin:0 auto;padding:20px 16px 32px;display:flex;flex-direction:column;gap:14px}
+main{max-width:600px;margin:0 auto;padding:22px 16px 28px;display:flex;flex-direction:column;gap:0}
 .loading{text-align:center;color:var(--mute);padding:60px 0;margin:0}
-.logos{display:flex;gap:16px;align-items:center;justify-content:center;height:52px}
+.logos{display:flex;gap:18px;align-items:center;justify-content:center;height:62px}
 .logos img{filter:brightness(0);opacity:.86}
-.logos .gs{height:46px}.logos .sk{height:19px}
-.logos i{display:block;width:1px;height:36px;background:rgba(28,27,51,.18)}
-h1{font-size:23px;line-height:1.2;font-weight:700;letter-spacing:-.01em;margin:0;text-align:center}
-.lead{color:var(--mute);margin:8px 0 0;text-align:center;font-size:13px;line-height:1.5}
-.card{background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(38,42,84,.10);overflow:hidden}
-.card.pad{padding:16px;display:flex;flex-direction:column;gap:12px}
-.card.m{background:var(--amber-bg)}
-.band{padding:10px 16px;display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--navy)}
-.card.m .band{background:var(--amber)}
-.body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.logos .gs{height:52px}.logos .sk{height:26px}
+.logos i{display:block;width:1px;height:56px;background:rgba(28,27,51,.14)}
+h1{font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-.01em;margin:10px 0 18px;text-align:center}
+.lead{color:var(--mute);margin:8px 0 0;text-align:center;font-size:13.5px;line-height:1.6}
+/* the one card: frosted white over the lavender ground */
+.card{background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,.78));-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);border:1px solid rgba(255,255,255,.95);border-radius:22px;box-shadow:0 16px 40px rgba(38,42,84,.1);padding:22px}
+.sep{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+.fields{display:flex;flex-direction:column;gap:14px}
 h2{margin:0;font-size:15px;font-weight:600;line-height:1.4}
-h3{margin:0;font-size:13px;font-weight:600}
+h3{margin:0;font-size:13.5px;font-weight:600}
 h3.gap{margin-top:4px}
 .row{display:flex;gap:12px}
 .row > *{flex:1 1 0;min-width:0}
 .f{display:flex;flex-direction:column;gap:7px}
-label.fl{font-size:10.5px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
-label.fl span{letter-spacing:0;text-transform:none}
+.fl,.k{font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+.fl span{letter-spacing:0;text-transform:none;font-weight:400;color:var(--mute)}
 /* 16px, not the 15px of the prototype: an iPhone enlarges the whole page when a field smaller than 16px is tapped */
-.inp{width:100%;height:48px;border:1.5px solid rgba(28,27,51,.28);border-radius:12px;padding:0 13px;font-size:16px;background:#fff;outline:0}
+.inp{width:100%;height:50px;border:1.5px solid var(--edge);border-radius:12px;padding:0 13px;font-size:16px;background:#fff;outline:0;color:var(--ink)}
 .inp:focus{border-color:var(--navy);box-shadow:0 0 0 4px rgba(38,42,94,.14)}
 .inp[aria-invalid="true"]{border-color:var(--red)}
+.sel{position:relative;display:flex;align-items:center}
+.sel select{-webkit-appearance:none;appearance:none;padding-right:40px;background-image:none}
+.sel .chev{position:absolute;right:12px;font-size:22px;color:var(--label);pointer-events:none}
+.sel.f-flag select{padding-left:41px}
+.flag{position:absolute;left:12px;width:20px;height:15px;border-radius:3px;background:url(../assets/flags-sprite.png) no-repeat;background-size:300px auto;box-shadow:0 0 0 1px rgba(28,27,51,.12);pointer-events:none}
 .err{color:var(--red);font-size:13px;line-height:1.5;margin:0;display:flex;gap:6px;align-items:flex-start;font-weight:500}
-.errsum{background:#FCE4E9;color:#8E1D36;border-radius:12px;padding:10px 12px;margin:0;font-size:13px;line-height:1.5}
-.hint{font-size:11.5px;line-height:1.5;color:var(--mute);margin:0}
-/* choices: real radio buttons and tick boxes inside large labels */
-.opt{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:13px;font-weight:500;cursor:pointer}
-.opt input{width:22px;height:22px;margin:0;accent-color:var(--navy);flex:0 0 auto}
-.card.m .opt input{accent-color:var(--amber)}
-.opt.on{border-color:var(--navy);background:var(--navy-bg)}
-.card.m .opt.on{border-color:var(--amber);background:#fff}
-.opt.yn{padding:0 14px}
-.opts{display:flex;flex-direction:column;gap:8px}
+.errsum{background:#FCE4E9;color:#8E1D36;border-radius:12px;padding:10px 12px;margin:0 0 14px;font-size:13px;line-height:1.5}
+#sum:empty{display:none}
+.hint{font-size:12.5px;line-height:1.5;color:var(--mute);margin:0}
+/* a question: its name in capitals with an icon, the question, Yes / No, and under Yes the ways and the brands */
+.q{display:flex;flex-direction:column;gap:10px}
+.qh{display:flex;align-items:center;gap:7px}
+.qh .ico{font-size:17px;color:var(--navy)}
 .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.ifyes{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--navy-in)}
-.card.m .ifyes{background:var(--amber-in)}
-.ifyes .k{font-size:10.5px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
-.card.m .ifyes .k{color:var(--amber-ink)}
-.rc{width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(28,27,51,.1);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
-.rc .ico{font-size:17px}
+.opts{display:flex;flex-wrap:wrap;gap:9px}
+/* choices: real radio buttons and tick boxes, inside pills. The box itself is not drawn; the pill shows the choice */
+.opt{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:7px 16px 7px 8px;border:1.5px solid var(--edge);border-radius:999px;background:#fff;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer}
+.opt.plain{padding-left:15px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.opt.on{border:2px solid var(--navy);background:var(--chosen);color:var(--navy);font-weight:600}
+.opt:has(input:focus-visible){outline:3px solid var(--navy);outline-offset:3px}
+.opt.yn{justify-content:center;min-height:48px;padding:0 14px;border-radius:12px;font-size:15px;font-weight:600}
+.ifyes{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--inside);border:1px solid var(--inside-edge)}
+.rc{width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(28,27,51,.08);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.rc .ico{font-size:16px}
 .c-email{color:#C8412F}.c-phone{color:#0B7CC4}.c-sms{color:#7C3AED}
-.privacy{display:flex;flex-direction:column;gap:8px;padding:0 4px}
-.privacy .k{font-size:10.5px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
-.privacy p{margin:0;font-size:12.5px;line-height:1.55;color:var(--mute)}
-.privacy a{font-size:12.5px;text-decoration:underline}
-.save{display:flex;flex-direction:column;gap:12px}
-.btn{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--navy);color:#fff;font-weight:600;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 12px 28px rgba(38,42,94,.32)}
-.btn.plain{background:transparent;color:var(--mute);font-weight:500;font-size:13px;min-height:44px;box-shadow:none}
+.privacy{display:flex;flex-direction:column;gap:10px}
+.privacy p{margin:0;font-size:13.5px;line-height:1.55;color:var(--text)}
+.privacy a{font-size:13.5px;text-decoration:underline}
+.save{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.btn{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--navy);color:#fff;font-weight:600;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 12px 28px rgba(38,42,94,.32)}
+.btn:hover{background:var(--navy-dark)}
+.btn.plain{background:transparent;color:var(--mute);font-weight:500;font-size:13.5px;min-height:44px;box-shadow:none}
+.btn.plain:hover{background:transparent;color:var(--ink)}
 .btn[disabled]{opacity:.55;cursor:default}
-.cap{margin:0;text-align:center;font-size:11.5px;line-height:1.5;color:var(--mute)}
+.cap{margin:0;text-align:center;font-size:12.5px;line-height:1.5;color:var(--mute)}
+.card + .cap,.card + .save{margin-top:14px}
 .done{text-align:center;padding:34px 24px}
-.done h1{font-size:19px;font-weight:600;letter-spacing:0}
-.done .lead{font-size:13.5px;line-height:1.6;margin-top:10px}
+.done h1{font-size:20px;font-weight:600;letter-spacing:0;margin:0}
+.done .lead{font-size:14px;line-height:1.6;margin-top:10px}
 .done .tick{width:72px;height:72px;border-radius:50%;background:#DFF5EE;color:var(--green);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
 .done .tick .ico{font-size:40px}
-.recap{text-align:left;margin-top:20px;border-radius:14px;overflow:hidden;border:1.5px solid rgba(28,27,51,.12)}
-.recap > div{padding:12px 16px}
-.recap .rs{border-left:6px solid var(--navy)}
-.recap .rm{border-left:6px solid var(--amber);background:var(--amber-bg);border-top:1.5px solid rgba(28,27,51,.12)}
-.recap small{display:block;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:400;margin-bottom:3px}
+.recap{text-align:left;margin-top:20px;border-radius:14px;overflow:hidden;border:1.5px solid var(--edge);background:#fff}
+.recap > div{padding:12px 16px;border-left:6px solid var(--navy);font-size:14px}
+.recap > div + div{border-top:1.5px solid var(--line)}
+.recap small{display:block;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--label);font-weight:600;margin-bottom:3px}
 @media (max-width:360px){.row{flex-direction:column}.two{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
