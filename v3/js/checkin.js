@@ -4,6 +4,8 @@
 // The page cannot read anything from the CRM. What the customer enters is encrypted on this device FOR THE CRM that
 // issued the code: the code carries a public key, and only that CRM holds the private key. Whoever holds the code can
 // send details and cannot read them. The relays carry encrypted text only. checkin-rx.js explains the method (version 5).
+// The four ways to hear from us are always offered. A way chosen without its phone number or email address is kept,
+// and the page asks for the detail (version 3.4.1, as the prototype's page did).
 (function () {
   'use strict';
   var RELAYS = ['https://ntfy.envs.net', 'https://ntfy.adminforge.de', 'https://ntfy.hostux.net', 'https://ntfy.mzte.de', 'https://ntfy.sh'];
@@ -36,8 +38,16 @@
   function validEmail(x) { return /^[^\s@<>"()[\]\\,;:]+@[^\s@<>"()[\]\\,;:]+\.[^\s@<>"()[\]\\,;:]{2,}$/.test(String(x || '').trim()); }
   function validPhone(p) { var s = String(p || '').trim(), d = s.replace(/\D/g, ''); return /^[+\d][\d\s().-]*$/.test(s) && d.length >= 7 && d.length <= 15; }
   function has(kind) { return kind === 'email' ? validEmail(st.email) : validPhone(st.mobile); }
-  function ways() { return WAYS.filter(function (w) { return has(w[3]); }); }
   function wayLabel(k) { return WAYS.filter(function (w) { return w[0] === k; })[0][1]; }
+  // The four ways are always offered, as on the prototype's page. A way chosen without its contact detail is not
+  // dropped: the page says which detail to enter, and Save waits for it.
+  function stranded(a) { return WAYS.filter(function (w) { return a.channels.indexOf(w[0]) > -1 && !has(w[3]); }); }
+  function list(xs) { return xs.length > 1 ? xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1] : xs[0]; }
+  function needs(a) {
+    var s = stranded(a); if (!s.length) return '';
+    var what = []; if (s.some(function (w) { return w[3] === 'mobile'; })) what.push('your phone number'); if (s.some(function (w) { return w[3] === 'email'; })) what.push('your email address');
+    return 'You chose ' + list(s.map(function (w) { return w[1]; })) + '. Please enter ' + what.join(' and ') + ' above, or untick ' + (s.length > 1 ? 'them' : 'it') + '.';
+  }
   function b64url(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   function bytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
   function withTimeout(url, opts, ms) { var c = new AbortController(), t = setTimeout(function () { c.abort(); }, ms || 8000); opts = opts || {}; opts.signal = c.signal; return fetch(url, opts).then(function (r) { clearTimeout(t); return r; }, function (x) { clearTimeout(t); throw x; }); }
@@ -106,15 +116,14 @@
   }
   // one question: Yes or No, and under Yes the ways and the brands. q = 'recommend' or 'news'
   function question(q, title, icon, text) {
-    var a = st[q], w = ways(), err = st.errors[q];
+    var a = st[q], w = WAYS, err = needs(a) || st.errors[q];
     var yn = function (val, label) { var on = a.answer === val; return '<label class="opt yn' + (on ? ' on' : '') + '"><input type="radio" name="' + q + '" data-q="' + q + '" data-answer="' + (val ? 'yes' : 'no') + '"' + (on ? ' checked' : '') + '><span>' + label + '</span></label>'; };
     var tick = function (kind, v, label, badge) { var on = a[kind].indexOf(v) > -1; return '<label class="opt' + (on ? ' on' : '') + (badge ? '' : ' plain') + '"><input type="checkbox" data-q="' + q + '" data-' + kind + '="' + e(v) + '"' + (on ? ' checked' : '') + '>' + (badge || '') + '<span>' + e(label) + '</span></label>'; };
     var more = '';
     if (a.answer === true) {
       more = '<div class="ifyes"><span class="k">If yes</span><h3 id="h-' + q + '-w">How would you like to hear from us?</h3>' +
-        (w.length ? '<div class="opts" role="group" aria-labelledby="h-' + q + '-w">' + w.map(function (x) { return tick('channels', x[0], x[1], '<span class="rc" aria-hidden="true">' + (x[0] === 'whatsapp' ? WA : ico(x[2], 'c-' + x[0])) + '</span>'); }).join('') + '</div>'
-          : '<p class="hint">Add your phone number or your email address above. The ways to choose then appear here.</p>') +
-        (err ? '<p class="err" id="e-' + q + '">' + ico('error') + '<span>' + e(err) + '</span></p>' : '') +
+        '<div class="opts" role="group" aria-labelledby="h-' + q + '-w">' + w.map(function (x) { return tick('channels', x[0], x[1], '<span class="rc" aria-hidden="true">' + (x[0] === 'whatsapp' ? WA : ico(x[2], 'c-' + x[0])) + '</span>'); }).join('') + '</div>' +
+        (err ? '<p class="err" id="e-' + q + '" role="status">' + ico('error') + '<span>' + e(err) + '</span></p>' : '') +
         (cfg.brands.length > 1 ? '<h3 class="gap" id="h-' + q + '-b">Which brands?</h3><div class="opts" role="group" aria-labelledby="h-' + q + '-b">' + cfg.brands.map(function (b) { return tick('brands', b, b); }).join('') + '</div>' : '') + '</div>';
     }
     return '<section class="q sep" aria-label="' + e(title) + '"><div class="qh">' + ico(icon) + '<span class="k">' + e(title) + '</span></div><h2 id="h-' + q + '">' + e(text) + '</h2>' +
@@ -150,7 +159,7 @@
   function draw(focusTop) {
     page.innerHTML = SCREENS[st.step]();
     document.title = TITLES[st.step] + ' · SEIKO'; placeFlag();
-    if (focusTop) { var bad = page.querySelector('[aria-invalid="true"]') || page.querySelector('#qs .err'); if (bad && (bad.tagName === 'INPUT' || bad.tagName === 'SELECT')) bad.focus(); else { var h = page.querySelector('h1'); if (h) h.focus(); window.scrollTo(0, 0); if (bad) bad.scrollIntoView({ block: 'center' }); } }
+    if (focusTop) { var bad = page.querySelector('[aria-invalid="true"]') || (st.want && document.getElementById('i-' + st.want)) || page.querySelector('#qs .err'); if (bad && (bad.tagName === 'INPUT' || bad.tagName === 'SELECT')) bad.focus(); else { var h = page.querySelector('h1'); if (h) h.focus(); window.scrollTo(0, 0); if (bad) bad.scrollIntoView({ block: 'center' }); } }
   }
   // only the two questions are drawn again after a choice or after typing, so the field being typed in is never replaced
   function drawQuestions(keep) {
@@ -159,8 +168,6 @@
     box.innerHTML = questions();
     if (keep !== false && sel) { var n = box.querySelector(sel); if (n) n.focus(); }
   }
-  // a way whose contact detail is no longer valid is dropped, never kept
-  function prune() { var ok = ways().map(function (w) { return w[0]; }); ['recommend', 'news'].forEach(function (q) { st[q].channels = st[q].channels.filter(function (ch) { return ok.indexOf(ch) > -1; }); }); }
 
   function check() {
     var er = {};
@@ -173,10 +180,14 @@
     var d = Number(st.bday) || 0, m = Number(st.bmonth) || 0;
     if ((d && !m) || (m && !d)) er.bday = 'Choose both the day and the month of your birthday, or leave both empty.';
     else if (d && (m < 1 || m > 12 || d < 1 || d > MONTH_DAYS[m - 1])) er.bday = 'That day does not exist in ' + (MONTHS[m - 1] || 'that month') + '. Please choose again.';
-    prune();
+    // Yes needs at least one way, and every way chosen needs its contact detail: nothing is sent until both hold
+    st.want = '';
     [['recommend', 'Personal recommendations'], ['news', 'Newsletters and events']].forEach(function (q) {
-      var a = st[q[0]]; if (a.answer !== true || a.channels.length) return;
-      er[q[0]] = q[1] + ': ' + (ways().length ? 'choose at least one way to hear from us, or choose No.' : 'add your phone number or email address, or choose No.');
+      var a = st[q[0]]; if (a.answer !== true) return;
+      if (!a.channels.length) { er[q[0]] = q[1] + ': choose at least one way to hear from us, or choose No.'; return; }
+      var s = stranded(a); if (!s.length) return;
+      er[q[0]] = q[1] + ': ' + needs(a);
+      if (!st.want) st.want = s[0][3];
     });
     st.errors = er; return !Object.keys(er).length;
   }
@@ -217,7 +228,12 @@
   page.addEventListener('input', function (ev) {
     var k = ev.target.getAttribute('data-k'); if (!k) return;
     st[k] = ev.target.value;
-    if (k === 'mobile' || k === 'email') { clearTimeout(typeT); typeT = setTimeout(function () { prune(); drawQuestions(false); }, 250); }
+    if (k === 'mobile' || k === 'email') { clearTimeout(typeT); typeT = setTimeout(function () {
+      // a message from Save about a missing detail goes as soon as the detail is there
+      ['recommend', 'news'].forEach(function (q) { if (st.errors[q] && st[q].channels.length && !stranded(st[q]).length) delete st.errors[q]; });
+      var sum = document.getElementById('sum'); if (sum && sum.firstChild) sum.innerHTML = errSum();
+      drawQuestions(false);
+    }, 250); }
   });
   page.addEventListener('change', function (ev) {
     var t = ev.target, k = t.getAttribute('data-k'), q = t.getAttribute('data-q');
